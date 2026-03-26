@@ -216,3 +216,153 @@ function handleTransfer(e) {
 
   transfer(user, beneficiaryAccount, amount);
 }
+
+//===================recharger=========================
+const topupPopup       = document.getElementById('topupPopup');
+const quickTopupBtn    = document.getElementById('quickTopup');
+const closeTopupBtn    = document.getElementById('closeTopupBtn');
+const cancelTopupBtn   = document.getElementById('cancelTopupBtn');
+const topupForm        = document.getElementById('topupForm');
+const topupCardSelect  = document.getElementById('topupCard');
+const topupAmountInput = document.getElementById('topupAmount');
+
+quickTopupBtn .addEventListener('click', openTopupPopup);
+closeTopupBtn .addEventListener('click', closeTopupPopup);
+cancelTopupBtn.addEventListener('click', closeTopupPopup);
+topupPopup    .addEventListener('click', (e) => { if (e.target === topupPopup) closeTopupPopup(); });
+
+
+function openTopupPopup() {
+  topupPopup.classList.add('active');
+  document.body.classList.add('popup-open');
+}
+
+
+user.wallet.cards.forEach((card) => {
+  const option = document.createElement('option');
+  option.value = card.numcards;
+  option.textContent = card.type + ' ****' + card.numcards;
+  topupCardSelect.appendChild(option);
+});
+
+
+function closeTopupPopup() {
+  topupPopup.classList.remove('active');
+  document.body.classList.remove('popup-open');
+}
+
+
+
+
+function validateAmount(amount) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (!amount || isNaN(amount)) {
+        reject("Montant invalide ou vide.");
+      } else if (amount <= 0) {
+        reject("Le montant doit être supérieur à zéro.");
+      } else if (amount < 10) {
+        reject("Le montant minimum est de 10 MAD.");
+      } else if (amount > 10000) {
+        reject("Le montant maximum est de 10 000 MAD.");
+      } else {
+        resolve(amount);
+      }
+    }, 500);
+  });
+}
+
+function validateCard(numcards) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const card = user.wallet.cards.find((c) => c.numcards === numcards);
+
+      if (!card) {
+        reject("Moyen de paiement introuvable.");
+        return;
+      }
+
+      // Vérifier si la carte est expirée (format MM/YY)
+      const [year,month,day] = card.expiry.split("-");
+      const expiryDate = new Date(year, month - 1, day);
+      const today = new Date();
+
+      if (expiryDate < today) {
+        reject(`La carte **** ${card.numcards} est expirée.`);
+        return;
+      }
+
+      resolve(card);
+    }, 500);
+  });
+}
+
+function processTopup(card, amount) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      
+        user.wallet.balance += amount;
+        resolve({ card, amount });
+     
+    }, 1000);
+  });
+}
+
+
+function saveTopupTransaction(card, amount, status) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const transaction = {
+        id: Date.now(),
+        type: "RECHARGE",
+        amount: amount,
+        date: new Date().toLocaleString(),
+        from: `Carte ****` +card.numcards,
+        status: status, 
+      };
+
+      user.wallet.transactions.push(transaction);
+      resolve(transaction);
+    }, 500);
+  });
+}
+
+
+function topup(numcards, amount) {
+  validateAmount(amount)
+    .then((validAmount) => {
+      console.log("Étape 1 : Montant valide —", validAmount, "MAD");
+      return validateCard(numcards);
+    })
+    .then((card) => {
+      console.log("Étape 2 : Carte valide —", card.type, "****", card.numcards);
+      return processTopup(card, amount);
+    })
+    .then(({ card, amount }) => {
+      console.log("Étape 3 : Solde mis à jour —", user.wallet.balance, "MAD");
+      return saveTopupTransaction(card, amount, "success");
+    })
+    .then((transaction) => {
+      console.log("Étape 4 : Transaction enregistrée —", transaction);
+      console.log("Rechargement effectué avec succès !");
+      renderDashboard();   // votre fonction existante
+      closeTopupPopup();
+      alert(` Rechargement de ${amount} MAD effectué avec succès !`);
+    })
+    .catch((erreur) => {
+      console.log("Erreur :", erreur);
+      
+      const card = user.wallet.cards.find((c) => c.numcards === numcards);
+      if (card) {
+        saveTopupTransaction(card, amount, "failed");
+      }
+      alert("Erreur : " + erreur);
+    });
+}
+
+topupForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const numcards = topupCardSelect.value;
+  const amount   = parseFloat(topupAmountInput.value);
+  topup(numcards, amount);
+});
