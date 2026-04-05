@@ -179,9 +179,9 @@ function addtransactions(expediteur, destinataire, amount) {
 }
 
 
-function transfer(expediteur, numcompte, amount) {//num du dest
+async function transfer(expediteur, numcompte, amount) {//num du dest
 
-  checkUser(numcompte)
+  /* checkUser(numcompte)
     .then((destinataire) => {
       console.log("Étape 1  : Destinataire trouvé -", destinataire.name);
       return checkSolde(expediteur, amount)
@@ -204,7 +204,20 @@ function transfer(expediteur, numcompte, amount) {//num du dest
       
       console.log(" Erreur :", erreur);
       alert("Erreur : " + erreur);
-    });
+    }); */
+
+        const destinataire=await checkUser(numcompte);
+        console.log(destinataire);
+        const soldeMessage=await checkSolde(expediteur, amount);
+        console.log(soldeMessage);
+        const updateMessage=await updateSolde(expediteur, destinataire, amount);
+        console.log(updateMessage);
+        const addTransactionMessage=await addtransactions(expediteur, destinataire, amount);
+        console.log(addTransactionMessage);
+        renderDashboard();
+        closeTransfer();
+        alert("Virement effectué avec succès !");
+
 }
 
 function handleTransfer(e) {
@@ -328,8 +341,10 @@ function saveTopupTransaction(card, amount, status) {
 }
 
 
-function topup(numcards, amount) {
-  validateAmount(amount)
+async function topup(numcards, amount) {
+
+
+  /* validateAmount(amount)
     .then((validAmount) => {
       console.log("Étape 1 : Montant valide —", validAmount, "MAD");
       return validateCard(numcards);
@@ -357,7 +372,21 @@ function topup(numcards, amount) {
         saveTopupTransaction(card, amount, "failed");
       }
       alert("Erreur : " + erreur);
-    });
+    }); */
+
+ const validAmount= await validateAmount(amount);
+ console.log(validAmount);
+ const card= await validateCard(numcards);
+  console.log(card);
+const topupResult= await processTopup(card, amount);
+ console.log(topupResult);
+ const transaction= await saveTopupTransaction(card, amount, "success");
+ console.log(transaction);
+ renderDashboard();
+ closeTopupPopup();
+ alert(` Rechargement de ${amount} MAD effectué avec succès !`);
+
+
 }
 
 topupForm.addEventListener('submit', (e) => {
